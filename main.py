@@ -64,7 +64,7 @@ class MMD:
         :xyz: координаты в формате xyz на кадр
         :LxLyLz: длина блока в векторном формате.
         :n_bins: количество бинов
-        :r_range: диапазон для вычисления rdf
+        :r_range: диапазон для вычисления
         """
 
         g_r, edges = np.histogram([0], bins=n_bins, range=r_range)
@@ -119,7 +119,7 @@ class MMD:
 
     def init_vel(self, coords):
         """
-        Инициализация начальных скоростей частиц системы и установки скорости COM на ноль
+        Инициализация начальных скоростей частиц системы и установка скорости на ноль
         :coords: Координаты частиц в системе
         :return: Начальная скорость системы
         """
@@ -253,9 +253,7 @@ class MMD:
 
 
 if __name__ == '__main__':
-    # md = MMD(358.4, 30, 400, 3, 14, 1, 100)   # более плотные
-    md = MMD(1.6, 182, 400, 3, 50, 1, 100)    # менее плотные
-    md = MMD(rho=1.6, box=182, temp=400, ndim=3, cutoff=50, dt=1, Q=100)
+    md = MMD(rho=1.6, box=30, temp=400, ndim=3, cutoff=50, dt=1, Q=100)
     Position, _ = md.init_grid()
     velocity = md.init_vel(Position)
     fcs = np.zeros(np.shape(Position))
