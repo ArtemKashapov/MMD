@@ -14,7 +14,7 @@ R = kb * NA # Универсальная газовая постояная
 logging.basicConfig(filename='output.dat', level=logging.DEBUG)
 
 
-class Mol_Dynamics:
+class MMD:
     def __init__(self, rho, box, temp, ndim, cutoff, dt, Q):
         self.mass = 16.04       # Масса молекулы метана в г/моль
         self.box = box          # Размер коробки
@@ -46,7 +46,7 @@ class Mol_Dynamics:
                         xyz[k] -= self.box * n
         return c
 
-    def rho_to_Num(self):
+    def rho_to_num(self):
         """
         Функция для расчета количества частиц по плотности
         :return: Количество частиц
@@ -58,7 +58,6 @@ class Mol_Dynamics:
         # print("Количество частиц метана: ", int(N))
         return int(N)
 
-    @staticmethod
     def rdf(xyz, LxLyLz, n_bins=100, r_range=(0.01, 10.0)):
         """
         радиальная функция распределения пар
@@ -89,12 +88,12 @@ class Mol_Dynamics:
 
         return r, g_r
 
-    def initGrid(self):
+    def init_grid(self):
         """
         Функция для инициализации 3D-массива для системы
         :return: Массив с координатами системы
         """
-        nPart = self.rho_to_Num()
+        nPart = self.rho_to_num()
         # массив для координат
         coords = np.zeros((nPart, 3))
         # Количество частиц в каждой линии решетки
@@ -118,7 +117,7 @@ class Mol_Dynamics:
                         index[2] += 1
         return coords - self.box/2, self.box
 
-    def initVel(self, coords):
+    def init_vel(self, coords):
         """
         Инициализация начальных скоростей частиц системы и установки скорости COM на ноль
         :coords: Координаты частиц в системе
@@ -135,7 +134,7 @@ class Mol_Dynamics:
         vels = (vels-sumv) * fs           # смещение центра масс скорости к нулю
         return vels
 
-    def LJ_force(self, coords):
+    def lj_force(self, coords):
         """
         Расчет межчастичных сил в системе с использованием потенциала ЛД
         :coords: Координаты частиц в системе
@@ -176,13 +175,13 @@ class Mol_Dynamics:
                     forces[j, :] -= vec * 0
         return forces
 
-    def PE_Pressure(self, coords):
+    def pe_pressure(self, coords):
         """
-        Функция для расчета потенциальной энергии и давления системы
+        Расчет потенциальной энергии и давления системы
         :coords: Координаты частиц в системе
         :return: Потенциальная энергия и давление
         """
-        N = self.rho_to_Num()
+        N = self.rho_to_num()
         num_density = N / self.V
         Potential_energy = 0
         P_int = 0   
@@ -212,7 +211,7 @@ class Mol_Dynamics:
         pressure = (num_density * kb * self.temp) - (P_int / (3 * self.V))  # финальное полное давление
         return Potential_energy, pressure
 
-    def Temp_KE(self, vels):
+    def temp_ke(self, vels):
         """
         Функция для расчета кинетической энергии и температуры системы
         :vels: Скорости частиц в системе
@@ -223,24 +222,6 @@ class Mol_Dynamics:
         kinetic_Energy = (0.5 * self.mass * vels2) * 1e4
         Temperature = kinetic_Energy / (0.5 * self.ndim * nPart * kb)
         return kinetic_Energy, Temperature
-
-    def velocity_Verlet(self, position, velocity, forces):
-        """
-        Реализация интегратора скорости-Верле
-        :position: Координаты частиц в системе
-        :Velocity: Скорости частиц в системе.
-        :force: Силы между частицами в системе.
-        :return: Положение, скорость и силы системы для следующего временного шага
-        """
-        dt2 = self.dt * self.dt
-        imass = 1/self.mass
-        position += self.dt * velocity + (dt2 * 0.5 * forces * imass * 1e-4)  # обновление позиции для следующего временного шага
-        position = self.PBC(position)
-        v_half = velocity + (self.dt * forces * 0.5 * imass * 1e-4)
-        # updating forces
-        forces = self.LJ_force(position)
-        velocity = v_half + (self.dt * forces * 0.5 * imass * 1e-4)
-        return position, velocity, forces
 
     def velocity_verlet_thermostat(self, position, velocity, forces, psi):
         """
@@ -257,32 +238,33 @@ class Mol_Dynamics:
         # обновление позиции для следующего временного шага
         position += velocity * self.dt + dt2 * 0.5 * ((forces * imass * 1e-4) - (psi * velocity))
         position = self.PBC(position)
-        KE = self.Temp_KE(velocity)[0]
-        self.temp = self.Temp_KE(velocity)[1]
+        KE = self.temp_ke(velocity)[0]
+        self.temp = self.temp_ke(velocity)[1]
         psi_half = psi + (self.dt * (0.5 / self.Q) * ((KE/nPart) - (1.5 * kb * self.temp)))
         v_half = velocity + (0.5 * self.dt * ((imass * forces * 1e-4) - (psi_half * velocity)))
         # обновление сил
-        forces = self.LJ_force(position)
+        forces = self.lj_force(position)
         # рассчитать пси и скорости при t + dt и обновить силы
-        KE_half = self.Temp_KE(v_half)[0]
-        self.temp = self.Temp_KE(v_half)[1]
+        KE_half = self.temp_ke(v_half)[0]
+        self.temp = self.temp_ke(v_half)[1]
         psi = psi_half + (self.dt * 0.5 / self.Q) * ((KE_half/nPart) - (1.5 * kb * self.temp))
         velocity = (v_half + (0.5 * self.dt * forces * imass * 1e-4)) / (1 + (0.5 * self.dt * psi))
         return position, velocity, forces, psi
 
 
 if __name__ == '__main__':
-    md1 = Mol_Dynamics(358.4, 30, 400, 3, 14, 1, 100)   # Class object for higher density
-    md2 = Mol_Dynamics(1.6, 182, 400, 3, 50, 1, 100)    # Class object for lower density
-    Position, _ = md1.initGrid()
-    velocity = md1.initVel(Position)
+    # md = MMD(358.4, 30, 400, 3, 14, 1, 100)   # более плотные
+    md = MMD(1.6, 182, 400, 3, 50, 1, 100)    # менее плотные
+    md = MMD(rho=1.6, box=182, temp=400, ndim=3, cutoff=50, dt=1, Q=100)
+    Position, _ = md.init_grid()
+    velocity = md.init_vel(Position)
     fcs = np.zeros(np.shape(Position))
     psi = 0
     Nfreq = 100
     run = 10000
-    logging.debug('Init_temp: {}'.format(md1.temp))
-    logging.debug('Rho: {}'.format(md1.rho))
-    logging.debug('Q: {}'.format(md1.Q))
+    logging.debug('Init_temp: {}'.format(md.temp))
+    logging.debug('Rho: {}'.format(md.rho))
+    logging.debug('Q: {}'.format(md.Q))
     Arr_Temp = []
     Arr_Press = []
     Arr_PE = []
@@ -290,25 +272,25 @@ if __name__ == '__main__':
     Arr_TE = []
     for step in range(run):
         # Position, velocity, fcs = md1.velocity_Verlet(Position, velocity, fcs)
-        Position, velocity, fcs, psi = md1.velocity_verlet_thermostat(Position, velocity, fcs, psi)
-        md1.temp = md1.Temp_KE(velocity)[1]
-        Arr_Temp.append(md1.temp)
+        Position, velocity, fcs, psi = md.velocity_verlet_thermostat(Position, velocity, fcs, psi)
+        md.temp = md.temp_ke(velocity)[1]
+        Arr_Temp.append(md.temp)
         vels2sum = vels2 = np.sum(np.power(velocity, 2))
-        Pressure = md1.PE_Pressure(Position)[1]
+        Pressure = md.pe_pressure(Position)[1]
         Arr_Press.append(Pressure)
-        Potential_Energy = md1.PE_Pressure(Position)[0]
+        Potential_Energy = md.pe_pressure(Position)[0]
         Arr_PE.append(Potential_Energy)
-        Kinetic_Energy = md1.Temp_KE(velocity)[0]
+        Kinetic_Energy = md.temp_ke(velocity)[0]
         Arr_KE.append(Kinetic_Energy)
         Total_energy = Kinetic_Energy + Potential_Energy
         Arr_TE.append(Total_energy)
         if step % Nfreq == 0:
-            logging.debug('step: {}'.format(step))
+            logging.debug('Step: {}'.format(step))
             logging.debug('Vels2: {}'.format(vels2sum))
-            logging.debug('Temp: {}'.format(md1.temp))
-            logging.debug('Pressure: {}'.format(Pressure))
-            logging.debug('PE: {}'.format(Potential_Energy))
-            logging.debug('KE: {}'.format(Kinetic_Energy))
-            logging.debug('TE: {}'.format(Total_energy))
+            logging.debug('temperature: {}'.format(md.temp))
+            logging.debug('pressure: {}'.format(Pressure))
+            logging.debug('pe: {}'.format(Potential_Energy))
+            logging.debug('ke: {}'.format(Kinetic_Energy))
+            logging.debug('te: {}'.format(Total_energy))
             logging.debug('\n')
-    print("Complete")
+    print("Готово.")
