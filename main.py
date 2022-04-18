@@ -3,42 +3,34 @@ import math as mt
 import matplotlib.pyplot as plt
 import logging
 
-"""
-File name: MolecularDynamics.py
-Author: Tijin Hanno Geo Saji
-Student Number: 5010322
-Date Created: 30/05/2021
-Date last modified: 15/06/2021
-"""
-
-# reduced units
+# Единицы
 A = 1e-10
-kb = 0.008314
-sig = 3.73
-eps = 148 * kb
-NA = 6.022 * 1e23
-R = kb * NA
+kb = 0.008314 # Постояная Больцмана
+sig = 3.73 # Сигма
+eps = 148 * kb # Эписилон
+NA = 6.022 * 1e23 # Число Авагадро
+R = kb * NA # Универсальная газовая постояная
 
 logging.basicConfig(filename='output.dat', level=logging.DEBUG)
 
 
 class Mol_Dynamics:
     def __init__(self, rho, box, temp, ndim, cutoff, dt, Q):
-        self.mass = 16.04       # mass of methane molecule in g/mol
-        self.box = box          # box size
-        self.temp = temp        # temperature
-        self.ndim = ndim        # dimension of the box
-        self.cutoff = cutoff    # cutoff
-        self.V = self.box*self.box*self.box     # volume of simulation box
-        self.rho = rho          # density
-        self.dt = dt            # time step
+        self.mass = 16.04       # Масса молекулы метана в г/моль
+        self.box = box          # Размер коробки
+        self.temp = temp        # Температура
+        self.ndim = ndim        # Размер коробки
+        self.cutoff = cutoff    # Срез
+        self.V = self.box*self.box*self.box   # объем коробки 
+        self.rho = rho          # Плотность
+        self.dt = dt            # Шаг времени
         self.Q = Q              
 
     def PBC(self, c):
         """
-        Function to operate on the array passed the PBC and MIC conditions
-        :param c: Array passed
-        :return: PBC/MIC corrected array
+        Работа с массивом и условиями PBC и MIC
+        :param c: переданный массив 
+        :return: Новый массив PBC/MIC
         """
         nPart = len(c)
         for i in range(nPart):
@@ -56,25 +48,24 @@ class Mol_Dynamics:
 
     def rho_to_Num(self):
         """
-        Function to calculate number of particles from the density
-        :return: Number of particles
+        Функция для расчета количества частиц по плотности
+        :return: Количество частиц
         """
         N = float(self.rho) * (int(self.box) ** 3) * 3.75 * (10 ** (-5))
-        # the calculation for the expression is as follows; units are shown inside square brackets
-        # N_part = rho[kg m^-3] * (L_box [10^-10 m])^3 * 6.023*10^23[molecules/mol]/ 16.04 [ 10^-3 kg/mol]
-        # N_part = rho*(L_box**3)*3.755*(10**(-5)) [molecules]
-        # print("Number of methane particles is: ", int(N))
+        # Вычисление выражения выглядит следующим образом; единицы указаны в квадратных скобках
+        # N_частицы = rho[кг м^-3] * (L_коробки [10^-10 m])^3 * 6.023*10^23[молекул/моль]/ 16.04 [ 10^-3 кг/моль]
+        # N_частицы = rho*(L_коробки**3)*3.755*(10**(-5)) [молекул]
+        # print("Количество частиц метана: ", int(N))
         return int(N)
 
     @staticmethod
     def rdf(xyz, LxLyLz, n_bins=100, r_range=(0.01, 10.0)):
         """
-        radial pair distribution function
-        :param xyz: coordinates in xyz format per frame
-        :param LxLyLz: box length in vector format
-        :param n_bins: number of bins
-        :param r_range: range on which to compute rdf
-        :return:
+        радиальная функция распределения пар
+        :xyz: координаты в формате xyz на кадр
+        :LxLyLz: длина блока в векторном формате.
+        :n_bins: количество бинов
+        :r_range: диапазон для вычисления rdf
         """
 
         g_r, edges = np.histogram([0], bins=n_bins, range=r_range)
@@ -100,25 +91,25 @@ class Mol_Dynamics:
 
     def initGrid(self):
         """
-        Function to initialize a 3D array for the system
-        :return: Array with the coordinates of the system
+        Функция для инициализации 3D-массива для системы
+        :return: Массив с координатами системы
         """
         nPart = self.rho_to_Num()
-        # load empty array for coordinates
+        # массив для координат
         coords = np.zeros((nPart, 3))
-        # Find number of particles in each lattice line
+        # Количество частиц в каждой линии решетки
         nstart, nstop = 1/16 * self.box, 15/16 * self.box
         n = int(nPart ** (1 / 3))
-        # define lattice spacing
+        # Шаг решетки
         spac = (nstop - nstart) / n
-        # initiate lattice indexing
+        # индексация
         index = np.zeros(3)
-        # assign particle positions
+        # Назначать позиции частиц
         for part in range(nPart):
                 coords[part, :] = (index * spac) + nstart
-                # advance particle position
+                # Продвигать позицию частицы
                 index[0] += 1
-                # if last lattice point is reached jump to next line
+                # если достигнута последняя точка решетки, перейти к следующей строке
                 if index[0] == n:
                     index[0] = 0
                     index[1] += 1
@@ -129,30 +120,30 @@ class Mol_Dynamics:
 
     def initVel(self, coords):
         """
-        Function to initialize the initial velocities of the particles of the system and to set COM velocity to zero
-        :param coords: Coordinates of the particles in the system
-        :return: Initial velocity of the system
+        Инициализация начальных скоростей частиц системы и установки скорости COM на ноль
+        :coords: Координаты частиц в системе
+        :return: Начальная скорость системы
         """
         N_part = len(coords)
-        vels = np.random.uniform(0, 1, size=(N_part, self.ndim))  # giving random velocities
+        vels = np.random.uniform(0, 1, size=(N_part, self.ndim))  # случайные скорости
         vels_magn2 = np.sum(np.square(vels), axis=1)
-        sumv = np.sum(np.sqrt(vels_magn2), axis=0)          # sum of all velocities
-        sumv2 = np.sum(vels_magn2, axis=0)                # sum of kinetic energy/mass
-        sumv = sumv/N_part                  # to find velocity of centre of mass
-        sumv2 = sumv2/N_part                 # mean square velocity
-        fs = mt.sqrt(self.ndim * kb * self.temp / (self.mass * sumv2 * 1e4))   # scale factor
-        vels = (vels-sumv) * fs           # shifting the centre of mass velocity to zero
+        sumv = np.sum(np.sqrt(vels_magn2), axis=0)          # сумма всех скоростей
+        sumv2 = np.sum(vels_magn2, axis=0)                # сумма кинетической энергии
+        sumv = sumv/N_part                  # Скорость центра масс
+        sumv2 = sumv2/N_part                 # средняя квадратичная скорость
+        fs = mt.sqrt(self.ndim * kb * self.temp / (self.mass * sumv2 * 1e4))   # масштаб
+        vels = (vels-sumv) * fs           # смещение центра масс скорости к нулю
         return vels
 
     def LJ_force(self, coords):
         """
-        Function to calculate the inter-particle forces in the system using the LJ potential
-        :param coords: Coordinates of the particles in the system
-        :return: Array with the inter-particle forces in the system
+        Расчет межчастичных сил в системе с использованием потенциала ЛД
+        :coords: Координаты частиц в системе
+        :return: Массив с межчастичными силами в системе
         """
-        # initialize empty array for forces
+        # Пустой массив для сил
         forces = np.zeros(coords.shape)
-        # obtain number of particles
+        # Количество частиц
         nPart = np.shape(coords)[0]
         cutoff2 = self.cutoff * self.cutoff
         sig6 = sig ** 6
@@ -160,10 +151,10 @@ class Mol_Dynamics:
         lj1 = 48 * eps * sig12
         lj2 = 24 * eps * sig6
 
-        # compute forces between all particles
+        # вычислить силы между всеми частицами
         for i in range(nPart-1):
             for j in range(i + 1, nPart):
-                # compute distance and adjust for PBC
+                # вычислить расстояние и скорректировать PBC
                 xyz = coords[i, :] - coords[j, :]
                 for k, c in enumerate(xyz):
                     if c < -self.box / 2:
@@ -187,17 +178,17 @@ class Mol_Dynamics:
 
     def PE_Pressure(self, coords):
         """
-        Function to calculate the Potential Energy and the Pressure of the system
-        :param coords: Coordinates of the particles in the system
-        :return: Potential Energy and Pressure
+        Функция для расчета потенциальной энергии и давления системы
+        :coords: Координаты частиц в системе
+        :return: Потенциальная энергия и давление
         """
         N = self.rho_to_Num()
         num_density = N / self.V
         Potential_energy = 0
-        P_int = 0   # Interaction part of virial pressure
+        P_int = 0   
         nPart = coords.shape[0]
         cutoff2 = self.cutoff * self.cutoff
-        # Try to keep the code DRY
+        # 
         for i in range(nPart):
             for j in range(i + 1, nPart):
                 xyz = coords[i, :] - coords[j, :]
@@ -217,15 +208,15 @@ class Mol_Dynamics:
                     r6inv = r2inv * r2inv * r2inv
                     r12inv = r6inv * r6inv
                     Potential_energy += 4 * eps * ((sig12 * r12inv) - (sig6 * r6inv))
-                    P_int += 4 * eps * ((-12 * sig12 * r12inv) + (6 * sig6 * r6inv))   # Config. contribution of Pressure
-        pressure = (num_density * kb * self.temp) - (P_int / (3 * self.V))  # final total pressure
+                    P_int += 4 * eps * ((-12 * sig12 * r12inv) + (6 * sig6 * r6inv))   # Конфиг. вклад давления
+        pressure = (num_density * kb * self.temp) - (P_int / (3 * self.V))  # финальное полное давление
         return Potential_energy, pressure
 
     def Temp_KE(self, vels):
         """
-        Fuction to calculate the Kinetic energy and Temperature of the system
-        :param vels: Velocities of the particles in the system
-        :return: Kinetic Energy and Temperature
+        Функция для расчета кинетической энергии и температуры системы
+        :vels: Скорости частиц в системе
+        :return: Кинетическая энергия и температура
         """
         nPart = vels.shape[0]
         vels2 = np.sum(np.power(vels, 2))
@@ -235,15 +226,15 @@ class Mol_Dynamics:
 
     def velocity_Verlet(self, position, velocity, forces):
         """
-        Function to implement the velocity-verlet integrator
-        :param position: Coordinates of the particles in the system
-        :param velocity: Velocities of the particles in the system
-        :param forces: Inter-particle forces between the particles in the system
-        :return: Position, Velocity and forces of the system for the next time step
+        Реализация интегратора скорости-Верле
+        :position: Координаты частиц в системе
+        :Velocity: Скорости частиц в системе.
+        :force: Силы между частицами в системе.
+        :return: Положение, скорость и силы системы для следующего временного шага
         """
         dt2 = self.dt * self.dt
         imass = 1/self.mass
-        position += self.dt * velocity + (dt2 * 0.5 * forces * imass * 1e-4)  # updating position for next time step
+        position += self.dt * velocity + (dt2 * 0.5 * forces * imass * 1e-4)  # обновление позиции для следующего временного шага
         position = self.PBC(position)
         v_half = velocity + (self.dt * forces * 0.5 * imass * 1e-4)
         # updating forces
@@ -253,26 +244,26 @@ class Mol_Dynamics:
 
     def velocity_verlet_thermostat(self, position, velocity, forces, psi):
         """
-        Function the implement the velocity-verlet integrator with the thermostat
-        :param position: Coordinates of the particles in the system
-        :param velocity: Velocities of the particles in the system
-        :param forces: Inter-particle forces between the particles in the system
-        :param psi:
-        :return: Position, Velocity, forces and psi of the system for the next time step
+        Реализация интегратора скорости-верле с термостатом
+        :param position: Координаты частиц в системе
+        :param Velocity: Скорости частиц в системе.
+        :param force: Силы между частицами в системе.
+        :парам пси:
+        :return: Положение, скорость, силы и psi системы для следующего временного шага
         """
         dt2 = self.dt * self.dt
         imass = 1/self.mass
         nPart = position.shape[0]
-        # updating position for next time step
+        # обновление позиции для следующего временного шага
         position += velocity * self.dt + dt2 * 0.5 * ((forces * imass * 1e-4) - (psi * velocity))
         position = self.PBC(position)
         KE = self.Temp_KE(velocity)[0]
         self.temp = self.Temp_KE(velocity)[1]
         psi_half = psi + (self.dt * (0.5 / self.Q) * ((KE/nPart) - (1.5 * kb * self.temp)))
         v_half = velocity + (0.5 * self.dt * ((imass * forces * 1e-4) - (psi_half * velocity)))
-        # updating forces
+        # обновление сил
         forces = self.LJ_force(position)
-        # calculate psi and velocities at t+dt and update forces
+        # рассчитать пси и скорости при t + dt и обновить силы
         KE_half = self.Temp_KE(v_half)[0]
         self.temp = self.Temp_KE(v_half)[1]
         psi = psi_half + (self.dt * 0.5 / self.Q) * ((KE_half/nPart) - (1.5 * kb * self.temp))
