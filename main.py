@@ -1,10 +1,4 @@
-#!/usr/bin/env python
-# MSM2018-AtomSims-HW, MD simulation of LJ particles
-# Xiaohong Zhang
-# Getman Research Group
-# 03/23/2018
-
-# To use:
+# Пример использования:
 # python md.py -n 100 -b 15 -t 1.0 -r 1000 -e NVE -l ps -i velverlet -c berendsen
 
 import sys
@@ -18,43 +12,42 @@ np.random.seed(379245)
 
 atom = {'Ar':{'mass':39.948,'eps':1.65e-21,'sigma':3.4e-10}} 
 a_name = 'Ar'
-m = atom[a_name]['mass'] *1.6747e-27                # mass, [kg]
-eps = atom[a_name]['eps']                           # epsilon, [J]
-sigma = atom[a_name]['sigma']                       # sigma in Lennard-Jones Potential, [m]
-kB = 1.380e-23                                      # Boltzmann, [J/K]
-Na = 6.022e23                                       # Avogadro number
+m = atom[a_name]['mass'] *1.6747e-27                # масса, [кг]
+eps = atom[a_name]['eps']                           # epsilon, [Джоуль]
+sigma = atom[a_name]['sigma']                       # sigma в Lennard-Jones Potential, [м]
+kB = 1.380e-23                                      # Коэффициент Больцмана, [Джоуль/K]
+Na = 6.022e23                                       # Число Авогадро
 
-dt = 0.005                                          # integration time step
-rc = 2.5                                            # LJ cutoff distance
+dt = 0.005                                          # шаг по времени
+rc = 2.5                                            # LJ дистанция отсечки
 rc2 = rc**2
 rci = 1/rc
 rc6i = rci**6
 rs = 2.0                                            # potential switch distance
 rs2 = rs**2      
-ec = 4.0*rc6i*(rc6i - 1)                            # LJ cutoff energy
-tau = 1                                             # Berendsen coupling parameter
-nu = 0.1                                            # Andersen collision frequency
+ec = 4.0*rc6i*(rc6i - 1)                            # LJ энергия отсечки
+tau = 1                                             # Параметр связи Брендсена
 
 
 
 
 def initUnifPos(N,L):
-    """ generate simulation box filled with N particles and inititial positions """
-    nc = int(np.floor(np.cbrt(N)))                  # cut box into small cubic cells
-    lc = float(L/nc)                                # length of each small cubic cell
-    pos_arr = np.zeros(shape=(N,3))                 # store coordinates 3*[x,y,z]
+    """ созданиие коробки заполненной N частицами с начальными позициями """
+    nc = int(np.floor(np.cbrt(N)))                  # получение ячеек
+    lc = float(L/nc)                                # длина каждой ячейки
+    pos_arr = np.zeros(shape=(N,3))                 # 3*[x,y,z]
     f = open('init_pos.xyz','w')
-    f.write(str(N) + "\n" + "LJ particles\n")       # write number of particles
+    f.write(str(N) + "\n" + "LJ particles\n")       # записать число частиц
     
-    for i in range(int(N//np.power(nc,3))+1):       # loop over big box, refill from start after first round filling (nc^3)
-        for xx in range(nc):                        # loop over x direction of the big box
-            for yy in range(nc):                    # loop over y direction of the big box
-                for zz in range(nc):                # loop over z direction of the big box
+    for i in range(int(N//np.power(nc,3))+1):  
+        for xx in range(nc):                        
+            for yy in range(nc):                    
+                for zz in range(nc):              
                     
                     idx = i*np.power(nc,3) + xx*np.power(nc,2) + yy*nc + zz
                     
-                    if (i==1):                      # next round filling
-                        if (idx >= N):              # stop filling particle when exceeding given particle number
+                    if (i==1):                      # следующий слой
+                        if (idx >= N):              # остановить заполнение частицы при превышении заданного количества частиц
                             break
                             
                     x = '{:.12e}'.format(np.random.uniform(low=xx*lc+0.1*lc, high=(xx+1)*lc-0.1*lc)) 
@@ -83,20 +76,20 @@ def wrapPBC(pos_arr,N,L):
 
 
 def initVel(N,T):
-    """ generate initial velocity """
-    vel = np.random.randn(N, 3)                     # velocity [x,y,z] of all particles
-    vs = np.zeros(shape=(N,1))                      # speed of each particle    
+    """ создание начальных скоростей """
+    vel = np.random.randn(N, 3)                     # скорость [x,y,z] всех частиц
+    vs = np.zeros(shape=(N,1))                      # скорость каждой частицы  
     sumv = 0.0
     sumv2 = 0.0
 
-    sumv = np.sum(vel, axis=0) / N                  # center of mass velocity
+    sumv = np.sum(vel, axis=0) / N                  # скорость центра масс
     sumv2 = np.sum(vel**2) / N
 
-    """ scaling factor for velocity to satisfy MB"""
-    fs = np.sqrt(3*T/(sumv2))                       # scaling factor for velocity to satisfy MB
+    """ коэффициент масштабирования для скорости, удовлетворяющий МБ"""
+    fs = np.sqrt(3*T/(sumv2))                       # коэффициент масштабирования для скорости, удовлетворяющий MB
 
     for i in range(N):
-        vel[i] = (vel[i] - sumv)*fs                 # zero center of mass velocity
+        vel[i] = (vel[i] - sumv)*fs                 # нулевая скорость центра масс
 
     for i in range (N):
         vs[i] = np.sqrt(np.dot(vel[i],vel[i]))   
@@ -169,9 +162,9 @@ def integration(ensemble,N,L,T,ljTail,thermostat,integrator,sig_a,r_c,v_c,en,r_o
     etot = 0.0
     en_new = 0.0
     
-    if (integrator == "verlet"):                   # needs r_old
+    if (integrator == "verlet"):                   # нужно r_old
         r_new = 2*r_c - r_old + f_c*dt**2          # r(t+dt)
-        v_c = (r_new - r_old)/(2*dt)               # current velocity v(t), no use v(t) in loop, store for Ek
+        v_c = (r_new - r_old)/(2*dt)               # текущая скорость v(t), не использовать v(t) в цикле, сохранить для Ek
 
         sumv2 = np.sum(v_c**2)
         temp = sumv2/(3*N)                         # 1/2 mv^2 = 3/2 NkT --->T = mv^2/(3Nk)
@@ -181,11 +174,11 @@ def integration(ensemble,N,L,T,ljTail,thermostat,integrator,sig_a,r_c,v_c,en,r_o
         r_c = np.copy(r_new)
         
       
-    if (integrator == "velverlet"):                # needs f_c  
+    if (integrator == "velverlet"):                # нужно f_c  
         r_new = r_c + v_c*dt + 0.5*f_c*dt**2       # r(t+dt)       
-        v_new = v_c + 0.5*f_c*dt                   # first update from f(t), [v(t+dt)=v(t)+(f(t+dt)+f(t))/2m *dt]
-        f_new, en_new = getForce(ljTail,r_new,N,L) # new force f(t+dt)
-        v_new = v_new + 0.5*f_new*dt               # second update of from f(t+dt)
+        v_new = v_c + 0.5*f_c*dt                   # используем f(t), [v(t+dt)=v(t)+(f(t+dt)+f(t))/2m *dt]
+        f_new, en_new = getForce(ljTail,r_new,N,L) # новая сила f(t+dt)
+        v_new = v_new + 0.5*f_new*dt               # используем f(t+dt)
      
         sumv2 = np.sum(v_c**2)
         temp = sumv2/(3*N)  
@@ -195,19 +188,6 @@ def integration(ensemble,N,L,T,ljTail,thermostat,integrator,sig_a,r_c,v_c,en,r_o
         v_c = np.copy(v_new)
         f_c = np.copy(f_new) 
 
-    
-    if (integrator == "leapfrog"):                 # needs v_old, v(t-0.5dt)
-        v_new = v_old + f_c*dt                     # new haf velocity v(t+0.5dt)
-        r_new = r_c + v_new*dt                     # r(t+dt), new pos
-        v_c = v_new - 0.5*f_c*dt                   # current velocity v(t), no use in loop, save for Ek
-        
-        sumv2 = np.sum(v_c**2)
-        temp = sumv2/(3*N)  
-        ek = 0.5*sumv2
-        etot = en + ek
-        r_c = np.copy(r_new)
-        v_old = np.copy(v_new) 
-
 
     """below is for NVT ensemble velocity rescaling """    
        
@@ -215,17 +195,7 @@ def integration(ensemble,N,L,T,ljTail,thermostat,integrator,sig_a,r_c,v_c,en,r_o
         if (thermostat == "berendsen"):
             if integrator in {"verlet","velverlet"}:
                 v_c = v_c*np.sqrt(1+dt/tau*(T/temp-1))       
-            elif (integrator == "leapfrog"):
-                v_old = v_old*np.sqrt(1+dt/tau*(T/temp-1))   
             
-        elif (thermostat == "andersen"):            
-            for i in range(N):                               # choose particles to collide
-                if (np.random.random() < nu*dt):
-                    if integrator in {"verlet","velverlet"}:
-                        v_c[i] = np.random.normal(0.0, sig_a, size=(1,3))    
-                    elif (integrator == "leapfrog"):
-                        v_old[i] = np.random.normal(0.0, sig_a, size=(1,3))  
-
         
     return r_c,v_c,r_old,v_old,f_c,en_new,temp,en,ek,etot 
 
@@ -236,7 +206,7 @@ def writeCoords(r_c,N,L):
 
     r_wrap = wrapPBC(r_c,N,L)
     one_traj = []
-    one_traj.append(str(N) + "\n" + "LJ particles\n")    
+    one_traj.append(str(N) + "\n" + "LJ частиц\n")    
     for i in range(N):                               
         x = '{:.7f}'.format(r_wrap[i][0]) 
         y = '{:.7f}'.format(r_wrap[i][1]) 
@@ -251,9 +221,9 @@ def writeCoords(r_c,N,L):
      
 def writeThermoVal(thermo_val,N):
         
-    thermo_val[:,0] = thermo_val[:,0]*dt*sigma*np.sqrt(m/eps)*1.0e12   # convert to ps  
-    thermo_val[:,1] = thermo_val[:,1]*eps/kB                           # convert to K
-    thermo_val[:,2:] = thermo_val[:,2:]*eps*Na/N*1.0e-3                # convert to [kJ/mol]
+    thermo_val[:,0] = thermo_val[:,0]*dt*sigma*np.sqrt(m/eps)*1.0e12   # конвертировать в  ps  
+    thermo_val[:,1] = thermo_val[:,1]*eps/kB                           # конвертировать в K
+    thermo_val[:,2:] = thermo_val[:,2:]*eps*Na/N*1.0e-3                # конвертировать в [кДжоуль/моль]
     np.savetxt('thermoVal.txt', thermo_val, fmt='%8.3f',header='time(ps), temp(K), en  ek  etot in (kJ/mol)')  
 
     return thermo_val
@@ -264,7 +234,7 @@ def writeThermoVal(thermo_val,N):
 def plotSpeedDist(vs,T):
        
     bin_wid = 20.0
-    vs = vs*np.sqrt(eps/m)      # convert to m/s
+    vs = vs*np.sqrt(eps/m)      # конвертировать в м/c
     bins = np.arange(min(vs), max(vs) + bin_wid, bin_wid)
     n, bins, patches = plt.hist(vs, bins=bins,  facecolor='r', alpha=0.2, label='T='+str(np.round(T*eps/kB))+'K')    
     plt.xlabel('Initial speed (m/s)')
@@ -282,7 +252,7 @@ def plotSpeedDist(vs,T):
 def plotThermo(thermo_val,ensemble,ljTail,integrator):
     
     fig, ax = plt.subplots(2, sharex=True)
-    ax[0].plot(thermo_val[:,0], thermo_val[:,1],label='T')   # plot temperature
+    ax[0].plot(thermo_val[:,0], thermo_val[:,1],label='T')   # график температуры
     ax[0].set_title(ensemble+' '+ljTail+' '+integrator)
     ax[0].legend()
     ax[0].set_ylabel('Temperature (K)')
@@ -312,20 +282,20 @@ def main():
     ljTail = 'ps'
     integrator = 'velverlet' #verlet
     thermostat = 'berendsen'
-    sig_a = np.sqrt(T)                            # Andersen heat bath
+    sig_a = np.sqrt(T)                     
     print ("\nMD simulation of Argon particles with LJ potential\n")
     print ("Particle number: %s\n" % N)
     print ("Box length: %.1f (sigma)\n" % L)
     print ("Argon density: %.3f kg/m^3\n" % (m*N/np.power(L*sigma,3)))
 
-    r_c = initUnifPos(N,L)                        # get initial position
+    r_c = initUnifPos(N,L)                        # начальная позиция
     v_c, vs = initVel(N,T)                        # get initial velocity and speed      
-    f_c, en = getForce(ljTail,r_c,N,L)            # get initial force
-    v_old = v_c - 0.5*f_c*dt                      # v(t-0.5dt), for leapfrog method
-    r_old = r_c - v_c*dt                          # r(t-dt), for verlet method
+    f_c, en = getForce(ljTail,r_c,N,L)            # начальная сила
+    v_old = v_c - 0.5*f_c*dt   
+    r_old = r_c - v_c*dt                          # r(t-dt), для Верле метода
     mdTraj = []    
     one_traj = writeCoords(r_c,N,L)  
-    mdTraj.append(one_traj)                       # write trajectory
+    mdTraj.append(one_traj)                       # записать траекторию
     
     step = 0  
     thermo_val = []                               # save thermo values
@@ -347,7 +317,7 @@ def main():
         if (integrator == "velverlet"):                 # velverlet already updated force inside its own algorithm   
             en = en_new
         else:
-            f_c, en = getForce(ljTail,r_c,N,L)          # update force 
+            f_c, en = getForce(ljTail,r_c,N,L)          # обновить силу
             
         step = step + 1
             
