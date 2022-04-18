@@ -253,7 +253,7 @@ class MMD:
 
 
 if __name__ == '__main__':
-    md = MMD(rho=1.6, box=30, temp=400, ndim=3, cutoff=50, dt=1, Q=100)
+    md = MMD(rho=1.6, box=50, temp=400, ndim=3, cutoff=50, dt=1, Q=100)
     Position, _ = md.init_grid()
     velocity = md.init_vel(Position)
     fcs = np.zeros(np.shape(Position))
@@ -263,25 +263,25 @@ if __name__ == '__main__':
     logging.debug('Init_temp: {}'.format(md.temp))
     logging.debug('Rho: {}'.format(md.rho))
     logging.debug('Q: {}'.format(md.Q))
-    Arr_Temp = []
-    Arr_Press = []
-    Arr_PE = []
-    Arr_KE = []
-    Arr_TE = []
+    temp_arr = []
+    press_arr = []
+    pe_arr = []
+    ke_arr = []
+    te_arr = []
     for step in range(run):
         # Position, velocity, fcs = md1.velocity_Verlet(Position, velocity, fcs)
         Position, velocity, fcs, psi = md.velocity_verlet_thermostat(Position, velocity, fcs, psi)
         md.temp = md.temp_ke(velocity)[1]
-        Arr_Temp.append(md.temp)
+        temp_arr.append(md.temp)
         vels2sum = vels2 = np.sum(np.power(velocity, 2))
         Pressure = md.pe_pressure(Position)[1]
-        Arr_Press.append(Pressure)
+        press_arr.append(Pressure)
         Potential_Energy = md.pe_pressure(Position)[0]
-        Arr_PE.append(Potential_Energy)
+        pe_arr.append(Potential_Energy)
         Kinetic_Energy = md.temp_ke(velocity)[0]
-        Arr_KE.append(Kinetic_Energy)
+        ke_arr.append(Kinetic_Energy)
         Total_energy = Kinetic_Energy + Potential_Energy
-        Arr_TE.append(Total_energy)
+        te_arr.append(Total_energy)
         if step % Nfreq == 0:
             logging.debug('Step: {}'.format(step))
             logging.debug('Vels2: {}'.format(vels2sum))
@@ -292,3 +292,41 @@ if __name__ == '__main__':
             logging.debug('te: {}'.format(Total_energy))
             logging.debug('\n')
     print("Готово.")
+
+    stps = [step for step in range(run)]
+    plt.figure()
+    plt.plot(stps, temp_arr, lw=2)
+    plt.xlabel('Шаг')
+    plt.xlim([stps[0], stps[-1]])
+    plt.ylabel('Температура')
+    plt.grid()
+
+    plt.figure()
+    plt.plot(stps, press_arr, lw=2)
+    plt.xlabel('Шаг')
+    plt.xlim([stps[0], stps[-1]])
+    plt.ylabel('Давление')
+    plt.grid()
+
+    plt.figure()
+    plt.plot(stps, pe_arr, lw=2)
+    plt.xlabel('Шаг')
+    plt.xlim([stps[0], stps[-1]])
+    plt.ylabel('Потенциальная энергия')
+    plt.grid()
+
+    plt.figure()
+    plt.plot(stps, ke_arr, lw=2)
+    plt.xlabel('Шаг')
+    plt.xlim([stps[0], stps[-1]])
+    plt.ylabel('Кинетическая энергия')
+    plt.grid()
+
+    plt.figure()
+    plt.plot(stps, te_arr, lw=2)
+    plt.xlabel('Шаг')
+    plt.xlim([stps[0], stps[-1]])
+    plt.ylabel('Полная энергия')
+    plt.grid()
+
+    plt.show()
