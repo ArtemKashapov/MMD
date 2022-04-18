@@ -19,7 +19,7 @@ class MMD:
         self.mass = 16.04       # Масса молекулы метана в г/моль
         self.box = box          # Размер коробки
         self.temp = temp        # Температура
-        self.ndim = ndim        # Размер коробки
+        self.ndim = ndim        # Размерность коробки
         self.cutoff = cutoff    # Срез
         self.V = self.box*self.box*self.box   # объем коробки 
         self.rho = rho          # Плотность
@@ -35,7 +35,7 @@ class MMD:
         nPart = len(c)
         for i in range(nPart):
             for j in range(i + 1, nPart):
-                # compute distance and adjust for PBC
+                # вычислям расстояние и корректируем PBC
                 xyz = c[i, :] - c[j, :]
                 for k, f in enumerate(xyz):
                     if f < -self.box / 2:
@@ -253,7 +253,7 @@ class MMD:
 
 
 if __name__ == '__main__':
-    md = MMD(rho=1.6, box=50, temp=400, ndim=3, cutoff=50, dt=1, Q=100)
+    md = MMD(rho=1.6, box=100, temp=400, ndim=3, cutoff=50, dt=1, Q=100)
     Position, _ = md.init_grid()
     velocity = md.init_vel(Position)
     fcs = np.zeros(np.shape(Position))
@@ -322,11 +322,11 @@ if __name__ == '__main__':
     plt.ylabel('Кинетическая энергия')
     plt.grid()
 
-    plt.figure()
-    plt.plot(stps, te_arr, lw=2)
-    plt.xlabel('Шаг')
-    plt.xlim([stps[0], stps[-1]])
-    plt.ylabel('Полная энергия')
-    plt.grid()
+    # plt.figure()
+    # plt.plot(stps, te_arr, lw=2)
+    # plt.xlabel('Шаг')
+    # plt.xlim([stps[0], stps[-1]])
+    # plt.ylabel('Полная энергия')
+    # plt.grid()
 
     plt.show()
