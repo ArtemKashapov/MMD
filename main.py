@@ -11,6 +11,7 @@ import time
 np.random.seed(379245)
 
 atom = {'Ar':{'mass':39.948,'eps':1.65e-21,'sigma':3.4e-10}} 
+
 a_name = 'Ar'
 m = atom[a_name]['mass'] * 1.6747e-27                # масса, [кг]
 eps = atom[a_name]['eps']                           # epsilon, [Джоуль]
@@ -66,7 +67,7 @@ def initUnifPos(N,L):
 
 
 def wrapPBC(pos_arr,N,L):
-    """ wrap the coordinates, use in trajectory """
+    
     for i in range(N):   
         pos_arr[i] = pos_arr[i] - L * np.floor(pos_arr[i] / L)
     
@@ -120,29 +121,8 @@ def getForce(ljTail, pos_arr, N, L):
                 r2i = 1 / r2
                 r6i = r2i ** 3
                 
-                if (ljTail == "trunc"):             # trunc at cutoff
-                    f_vec = 48 * r2i * r6i * (r6i - 0.5) * r_vec   
-                    ee = 4 * r6i * (r6i - 1)    
-
-                elif (ljTail == "ps"):              # potential shift
-                    f_vec = 48 * r2i * r6i * (r6i - 0.5) * r_vec
-                    ee = 4 * r6i * (r6i - 1) - ec                      
-                    
-                elif (ljTail == "fs"):              # force shift      
-                    f_vec = 48 * ri * (ri * r6i * (r6i - 0.5) - rci * rc6i * (rc6i - 0.5)) * r_vec
-                    ee = 4 * r6i * (r6i - 1) - ec + 48 * rci * rc6i * (rc6i - 0.5) * (r - rc)               
-                
-                elif (ljTail == "psw"):            # potential switch                                                                  
-                    if (r < rs):
-                        s = 1
-                        f_vec = 48 * r2i * r6i * (r6i - 0.5) * r_vec
-                        ee = s * 4 * r6i * (r6i - 1)
-                        
-                    elif (r >= rs):              
-                        R = (r2 - rs2) / (rc2 - rs2) # use in switch function 
-                        s = 1 + R ** 2 * (2 * R - 3)
-                        f_vec = 48 * r6i * (r2i * s * (r6i - 0.5) - R * (R - 1) / (rc2 - rs2) * (r6i - 1)) * r_vec                           
-                        ee = s * 4 * r6i * (r6i - 1)      
+                f_vec = 48 * r2i * r6i * (r6i - 0.5) * r_vec
+                ee = 4 * r6i * (r6i - 1) - ec    
                                                                               
                 f_arr[i] = f_arr[i] + f_vec
                 f_arr[j] = f_arr[j] - f_vec                     
@@ -154,47 +134,41 @@ def getForce(ljTail, pos_arr, N, L):
 
 
 def integration(ensemble, N, L, T, ljTail, thermostat, integrator, sig_a, r_c, v_c, en, r_old=None, v_old=None, f_c=None):
-    """ r-->position, v-->velocity, c-->current, verlet needs r_old, velVerlet needs f_c, 
-        leapFrog needs v_old. Besides, all integrator needs r_c,v_c,en"""
+
     
     sumv2 = 0.0    
     ek = 0.0
     etot = 0.0
     en_new = 0.0
     
-    if (integrator == "verlet"):                   # нужно r_old
-        r_new = 2*r_c - r_old + f_c*dt**2          # r(t+dt)
-        v_c = (r_new - r_old)/(2*dt)               # текущая скорость v(t), не использовать v(t) в цикле, сохранить для Ek
+                                                 # нужно r_old
+    # r_new = 2*r_c - r_old + f_c*dt**2          # r(t+dt)
+    # v_c = (r_new - r_old)/(2*dt)               # текущая скорость v(t), не использовать v(t) в цикле, сохранить для Ek
 
-        sumv2 = np.sum(v_c ** 2)
-        temp = sumv2 / (3 * N)                         # 1/2 mv^2 = 3/2 NkT --->T = mv^2/(3Nk)
-        ek = 0.5 * sumv2
-        etot = en + ek
-        r_old = np.copy(r_c)
-        r_c = np.copy(r_new)
-        
+    # sumv2 = np.sum(v_c ** 2)
+    # temp = sumv2 / (3 * N)                         # 1/2 mv^2 = 3/2 NkT --->T = mv^2/(3Nk)
+    # ek = 0.5 * sumv2
+    # etot = en + ek
+    # r_old = np.copy(r_c)
+    # r_c = np.copy(r_new)
+    
       
-    if (integrator == "velverlet"):                # нужно f_c  
-        r_new = r_c + v_c*dt + 0.5*f_c*dt**2       # r(t+dt)       
-        v_new = v_c + 0.5*f_c*dt                   # используем f(t), [v(t+dt)=v(t)+(f(t+dt)+f(t))/2m *dt]
-        f_new, en_new = getForce(ljTail,r_new,N,L) # новая сила f(t+dt)
-        v_new = v_new + 0.5*f_new*dt               # используем f(t+dt)
-     
-        sumv2 = np.sum(v_c ** 2)
-        temp = sumv2 / (3 * N)  
-        ek = 0.5 * sumv2
-        etot = en + ek  
-        r_c = np.copy(r_new)
-        v_c = np.copy(v_new)
-        f_c = np.copy(f_new) 
+                                               # нужно f_c  
+    r_new = r_c + v_c*dt + 0.5*f_c*dt**2       # r(t+dt)       
+    v_new = v_c + 0.5*f_c*dt                   # используем f(t), [v(t+dt)=v(t)+(f(t+dt)+f(t))/2m *dt]
+    f_new, en_new = getForce(ljTail,r_new,N,L) # новая сила f(t+dt)
+    v_new = v_new + 0.5*f_new*dt               # используем f(t+dt)
+    
+    sumv2 = np.sum(v_c ** 2)
+    temp = sumv2 / (3 * N)  
+    ek = 0.5 * sumv2
+    etot = en + ek  
+    r_c = np.copy(r_new)
+    v_c = np.copy(v_new)
+    f_c = np.copy(f_new) 
 
 
-    """below is for NVT ensemble velocity rescaling """    
-       
-    if (ensemble == "NVT"):
-        if (thermostat == "berendsen"):
-            if integrator in {"verlet","velverlet"}:
-                v_c = v_c*np.sqrt(1+dt/tau*(T/temp-1))       
+    v_c = v_c*np.sqrt(1+dt/tau*(T/temp-1))       
             
         
     return r_c, v_c, r_old, v_old, f_c, en_new, temp, en, ek, etot 
@@ -224,7 +198,7 @@ def writeThermoVal(thermo_val, N):
     thermo_val[:,0] = thermo_val[:,0]*dt*sigma*np.sqrt(m/eps)*1.0e12   # конвертировать в  ps  
     thermo_val[:,1] = thermo_val[:,1]*eps/kB                           # конвертировать в K
     thermo_val[:,2:] = thermo_val[:,2:]*eps*Na/N*1.0e-3                # конвертировать в [кДжоуль/моль]
-    np.savetxt('thermoVal.txt', thermo_val, fmt='%8.3f',header='time(ps), temp(K), en  ek  etot in (kJ/mol)')  
+    np.savetxt('thermoVal.txt', thermo_val, fmt='%8.3f',header='Время(пс), темп(K), Еп  Ек  Еполн (кДж/моль)')  
 
     return thermo_val
    
@@ -237,13 +211,13 @@ def plotSpeedDist(vs, T):
     vs = vs*np.sqrt(eps/m)      # конвертировать в м/c
     bins = np.arange(min(vs), max(vs) + bin_wid, bin_wid)
     n, bins, patches = plt.hist(vs, bins=bins,  facecolor='r', alpha=0.2, label='T='+str(np.round(T * eps / kB)) + 'K')    
-    plt.xlabel('Initial speed (m/s)')
-    plt.ylabel('Probability')
-    plt.title('Speed distribution')
+    plt.xlabel('Начальная скорость (м/с)')
+    plt.ylabel('Вероятность')
+    plt.title('Распределение по скоростям')
     plt.grid(True)
     plt.legend()
 #    plt.show()
-    plt.savefig('initSpeed.png')  
+    plt.savefig('is_distr.png')  
     plt.close()
     
 
@@ -251,16 +225,19 @@ def plotSpeedDist(vs, T):
     
 def plotThermo(thermo_val, ensemble, ljTail, integrator):
     
-    fig, ax = plt.subplots(2, sharex=True)
-    ax[0].plot(thermo_val[:,0], thermo_val[:,1],label='T')   # график температуры
-    ax[0].set_title(ensemble+' '+ljTail+' '+integrator)
-    ax[0].legend()
-    ax[0].set_ylabel('Temperature (K)')
-    ax[1].plot(thermo_val[:,0], thermo_val[:,2], label='EP')
-    ax[1].plot(thermo_val[:,0], thermo_val[:,3], label='EK')
-    ax[1].plot(thermo_val[:,0], thermo_val[:,4], label='Etot')
-    ax[1].set_ylabel('Energy (kJ/mol)')
-    ax[1].set_xlabel('Time (ps)')
+    plt.figure()
+    plt.subplot(1, 2, 1)
+    plt.plot(thermo_val[:,0], thermo_val[:,1],label='T')   # график температуры
+    
+    plt.legend()
+    plt.ylabel('Температура (K)')
+
+    plt.subplot(1, 2, 2)
+    plt.plot(thermo_val[:,0], thermo_val[:,2], label='Пот. Энергия')
+    plt.plot(thermo_val[:,0], thermo_val[:,3], label='Кин. Энергия')
+    plt.plot(thermo_val[:,0], thermo_val[:,4], label='Полн. Энерг')
+    plt.ylabel('Энергия (кДж/моль)')
+    plt.set_xlabel('Время (пс)')
     plt.legend()
     plt.show()
 #    plt.savefig('thermoVal.png')    
@@ -271,9 +248,6 @@ def plotThermo(thermo_val, ensemble, ljTail, integrator):
     
 def main():   
     
-    parser = argparse.ArgumentParser(description='Parameters for running LJ MD program.')
-    
-    args = parser.parse_args()
     N = 100
     L = 15
     T = 1.0
@@ -283,13 +257,13 @@ def main():
     integrator = 'velverlet' #verlet
     thermostat = 'berendsen'
     sig_a = np.sqrt(T)                     
-    print ("\nMD simulation of Argon particles with LJ potential\n")
-    print ("Particle number: %s\n" % N)
-    print ("Box length: %.1f (sigma)\n" % L)
-    print ("Argon density: %.3f kg/m^3\n" % (m * N / np.power(L * sigma, 3)))
+    print ("\n Симуляция частиц Аргона с потенциалом ЛД\n")
+    print ("Число частиц: %s\n" % N)
+    print ("Длина бокса: %.1f (sigma)\n" % L)
+    print ("Плотность Аргона: %.3f кг/м^3\n" % (m * N / np.power(L * sigma, 3)))
 
     r_c = initUnifPos(N, L)                        # начальная позиция
-    v_c, vs = initVel(N, T)                        # get initial velocity and speed      
+    v_c, vs = initVel(N, T)                        # начальные скорости   
     f_c, en = getForce(ljTail, r_c, N, L)            # начальная сила
     v_old = v_c - 0.5 * f_c * dt   
     r_old = r_c - v_c*dt                          # r(t-dt), для Верле метода
@@ -298,33 +272,31 @@ def main():
     mdTraj.append(one_traj)                       # записать траекторию
     
     step = 0  
-    thermo_val = []                               # save thermo values
+    thermo_val = []                              
     
     while step < nsteps:  
         
         if (step%100 == 0): 
             print ("step %s" % step)     
                  
-        """ Integration """
+        """ Интегрирование """
         r_c, v_c, r_old, v_old, f_c, en_new, temp, en, ek, etot = integration(ensemble, N, L, T, ljTail, thermostat, integrator, sig_a, r_c, v_c, en, r_old=r_old, v_old=v_old, f_c=f_c)
 
         if (step%10 == 0):   
             
-            thermo_val.append([step, temp, en, ek, etot])   # stroe current thermo value (e.g., step 0)
+            thermo_val.append([step, temp, en, ek, etot])  
             one_traj = writeCoords(r_c, N, L)  
-            mdTraj.append(one_traj)                     # store new position (e.g., step 1)
+            mdTraj.append(one_traj)                    
                 
-        if (integrator == "velverlet"):                 # velverlet already updated force inside its own algorithm   
-            en = en_new
-        else:
-            f_c, en = getForce(ljTail,r_c,N,L)          # обновить силу
+                        
+        en = en_new #f_c, en = getForce(ljTail,r_c,N,L)        
             
         step = step + 1
             
     thermo_val = np.asarray(thermo_val)
     thermo_val = writeThermoVal(thermo_val, N)
     
-    file = open('mdTraj.xyz', 'w')  
+    file = open('Traj.xyz', 'w')  
     for i in range(len(mdTraj)):
         for j in range(len(mdTraj[i])):
             file.write(mdTraj[i][j])
@@ -338,4 +310,4 @@ def main():
 if __name__ == "__main__":
     start_time = time.time()
     main()            
-    print("--- Runtime: %.2f seconds ---" % (time.time() - start_time))
+    print("--- Прошло: %.2f секунд ---" % (time.time() - start_time))
