@@ -13,9 +13,9 @@ np.random.seed(379245)
 atom = {'Ar':{'mass':39.948,'eps':1.65e-21,'sigma':3.4e-10}} 
 
 a_name = 'Ar'
-m = atom[a_name]['mass'] * 1.6747e-27                # масса, [кг]
+m = atom[a_name]['mass'] * 1.6747e-27               # масса, [кг]
 eps = atom[a_name]['eps']                           # epsilon, [Джоуль]
-sigma = atom[a_name]['sigma']                       # sigma в Lennard-Jones Potential, [м]
+sigma = atom[a_name]['sigma']                       # sig в пот ЛД, [м]
 kB = 1.380e-23                                      # Коэффициент Больцмана, [Джоуль/K]
 Na = 6.022e23                                       # Число Авогадро
 
@@ -237,7 +237,7 @@ def plotThermo(thermo_val, ensemble, ljTail, integrator):
     plt.plot(thermo_val[:,0], thermo_val[:,3], label='Кин. Энергия')
     plt.plot(thermo_val[:,0], thermo_val[:,4], label='Полн. Энерг')
     plt.ylabel('Энергия (кДж/моль)')
-    plt.set_xlabel('Время (пс)')
+    plt.xlabel('Время (пс)')
     plt.legend()
     plt.show()
 #    plt.savefig('thermoVal.png')    
@@ -250,7 +250,7 @@ def main():
     
     N = 100
     L = 15
-    T = 1.0
+    T = 1
     nsteps = 1000
     ensemble = 'NVE'
     ljTail = 'ps'
